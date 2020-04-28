@@ -8,10 +8,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
@@ -34,15 +35,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 myName = input.getText().toString();
+                TextView usersOnline = findViewById(R.id.myName);
+                usersOnline.setText(myName);
                 server.sendName(myName);
             }
         });
         builder.show();
 
         chatWindow = findViewById(R.id.chatWindow);
-
         controller = new MessageController();
-
         controller
                 .setIncomingLayout(R.layout.incoming_message)
                 .setOutgoingLayout(R.layout.outgoing_message)
@@ -53,7 +54,6 @@ public class MainActivity extends AppCompatActivity {
 
         final EditText chatInput = findViewById(R.id.chatInput);
         Button sendMessage = findViewById(R.id.sendMessage);
-
         sendMessage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -82,14 +82,30 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
             }
-        }, new Consumer<Pair<String, String>>() {
+        }, new Consumer<String>() {
             @Override
-            public void accept(final Pair<String, String> pair) {
+            public void accept(final String s) {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String text = String.format("From %s: %s", pair.first, pair.second);
-                        Toast.makeText(MainActivity.this, text, Toast.LENGTH_LONG).show();
+                        if (s != null && s.length() > 0) {
+                            Toast toast = Toast.makeText(MainActivity.this,
+                                    s + " подключился к чату", Toast.LENGTH_SHORT);
+                            toast.setGravity(Gravity.TOP, 0, 100);
+                            toast.show();
+                        }
+                    }
+                });
+            }
+        }, new Consumer<Integer>() {
+            @Override
+            public void accept(final Integer i) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        TextView usersOnline = findViewById(R.id.usersOnline);
+                        String text = "Пользователей онлайн: " + i;
+                        usersOnline.setText(text);
                     }
                 });
             }

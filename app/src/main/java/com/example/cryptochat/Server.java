@@ -17,21 +17,24 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Server {
 
 
-
     private WebSocketClient client;
     private Map<Long, String> names = new ConcurrentHashMap<>();
     private Consumer<Pair<String, String>> onMessageReceived;
-    private Consumer<Pair<String, String>> onPrivateMessage;
+    private Consumer<String> usersConnect;
+    private Consumer<Integer> countUsersOnline;
 
-    public Server(Consumer<Pair<String, String>> onMessageReceived, Consumer<Pair<String, String>> onPrivateMessage) {
+    public Server(Consumer<Pair<String, String>> onMessageReceived,
+                  Consumer<String> usersConnect,
+                  Consumer<Integer> countUsersOnline) {
         this.onMessageReceived = onMessageReceived;
-        this.onPrivateMessage = onPrivateMessage;
+        this.usersConnect = usersConnect;
+        this.countUsersOnline = countUsersOnline;
     }
 
     public void connect() {
         URI addr = null;
         try {
-            addr = new URI("ws://35.210.129.230:8881");
+            addr = new URI("ws://78.111.182.163:8881");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -65,7 +68,6 @@ public class Server {
                 Log.e("SERVER", "onError", ex);
             }
         };
-
         client.connect();
     }
 
@@ -74,22 +76,7 @@ public class Server {
     }
 
     public void sendMessage(String text) {
-        long receiver = Protocol.Message.GROUP_CHAT;
-        if (text.contains("@")) {
-            String name = text.split("@")[0].trim();
-            for(Long id : names.keySet()) {
-                if (names.get(id).equals(name)) {
-                    receiver = id;
-                }
-            }
-        }
-        try {
-            text = Crypto.encrypt(text);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
         Protocol.Message mess = new Protocol.Message(text);
-        mess.setReceiver(receiver);
         if (client != null && client.isOpen()) {
             client.send(Protocol.packMessage(mess));
         }
@@ -106,9 +93,11 @@ public class Server {
         Protocol.User u = status.getUser();
         if (status.isConnected()) {
             names.put(u.getId(), u.getName());
+            usersConnect.accept(u.getName());
         } else {
             names.remove(u.getId());
         }
+        countUsersOnline.accept(names.size());
     }
 
     private void displayIncoming(Protocol.Message message) {
@@ -116,20 +105,7 @@ public class Server {
         if (name == null) {
             name = "Unnamed";
         }
-        String text = null;
-        try {
-            text = Crypto.decrypt(message.getEncodedText());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if (message.getReceiver() == Protocol.Message.GROUP_CHAT) {
-            onMessageReceived.accept(
-                    new Pair<>(name, text)
-            );
-        } else {
-            onPrivateMessage.accept(
-                    new Pair<>(name, text)
-            );
-        }
+        String text = message.getEncodedText();
+        onMessageReceived.accept(new Pair<>(name, text));
     }
 }
